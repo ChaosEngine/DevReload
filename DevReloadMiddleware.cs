@@ -9,7 +9,7 @@ using System.Threading.Tasks;
 namespace Abiosoft.DotNet.DevReload
 {
 	/// <summary>
-	/// mdlware
+	/// DevReload middleware class
 	/// </summary>
 	public class DevReloadMiddleware
 	{
