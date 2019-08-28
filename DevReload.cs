@@ -30,6 +30,7 @@ namespace Abiosoft.DotNet.DevReload
 
 		/// <summary>
 		/// Delay between subsequent checkings of date (used for Javascript.setInterval)
+		/// in millisecs
 		/// </summary>
 		public int CheckIntervalDelay { get; set; } = 1000;
 
