@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Http;
 using Microsoft.Extensions.Options;
 using System;
 using System.IO;
+using System.Linq;
 using System.Security;
 using System.Threading.Tasks;
 
@@ -42,6 +43,17 @@ namespace Abiosoft.DotNet.DevReload
 			_watcher = new FileSystemWatcher();
 			_next = next;
 			_options = options.Value;
+
+			if (_options.IgnoredSubDirectories != null)
+			{
+				_options.IgnoredSubDirectories = _options.IgnoredSubDirectories
+					.Select(i => $"{Path.DirectorySeparatorChar}{i}{Path.DirectorySeparatorChar}").ToArray();
+			}
+			if (_options.StaticFileExtensions != null)
+			{
+				_options.StaticFileExtensions = _options.StaticFileExtensions
+					.Select(e => $".{e.TrimStart('.')}").ToArray();
+			}
 
 			applicationLifetime.ApplicationStopped.Register(OnShutDown, false);
 
@@ -108,21 +120,18 @@ namespace Abiosoft.DotNet.DevReload
 		{
 			// return if it's an ignored directory
 			var sep = Path.DirectorySeparatorChar;
+			string full_path = e.FullPath.Replace('\\', sep).Replace('/', sep);
 			foreach (string ignoredDirectory in _options.IgnoredSubDirectories)
 			{
-				if (e.FullPath.Contains($"{sep}{ignoredDirectory}{sep}")) return;
+				if (full_path.Contains(ignoredDirectory)) return;
 			}
 
 			FileInfo fileInfo = new FileInfo(e.FullPath);
 			if (_options.StaticFileExtensions.Length > 0)
 			{
-				foreach (string extension in _options.StaticFileExtensions)
+				if (_options.StaticFileExtensions.Contains(fileInfo.Extension))
 				{
-					if (fileInfo.Extension.Equals($".{extension.TrimStart('.')}"))
-					{
-						_time = DateTime.Now.ToString();
-						break;
-					}
+					_time = DateTime.Now.ToString();
 				}
 			}
 			else
