@@ -8,7 +8,7 @@ namespace Abiosoft.DotNet.DevReload
 	/// <summary>
 	/// Options to configure DevReload middleware.
 	/// </summary>
-	public sealed class DevReloadOptions
+	public class DevReloadOptions
 	{
 		/// <summary>
 		/// Directory to watch for file changes.
