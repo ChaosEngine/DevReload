@@ -55,7 +55,7 @@ namespace Abiosoft.DotNet.DevReload
 		/// <summary>
 		/// Path/rout at which we are serving date check request and refresh script
 		/// </summary>
-		public const string DevReloadPath = "/__DevReload";
+		public static string DevReloadPath { get; set; } = "/__DevReload";
 	}
 
 	/// <summary>
