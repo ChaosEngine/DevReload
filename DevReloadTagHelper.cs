@@ -17,7 +17,11 @@ namespace Abiosoft.DotNet.DevReload
         public override void Process(TagHelperContext context, TagHelperOutput output)
         {
 			output.TagName = "script";    // Replaces <devreload> with <script> tag
-			output.Attributes.Add("src", DevReloadOptions.DevReloadPath);
+            
+            var async_attr = new TagHelperAttribute("async", null, HtmlAttributeValueStyle.Minimized);
+            output.Attributes.Add(async_attr);
+
+            output.Attributes.Add("src", DevReloadOptions.DevReloadPath);
         }
     }
 }

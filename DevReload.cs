@@ -56,6 +56,16 @@ namespace Abiosoft.DotNet.DevReload
 		/// Path/rout at which we are serving date check request and refresh script
 		/// </summary>
 		public static string DevReloadPath { get; set; } = "/__DevReload";
+
+		/// <summary>
+		/// Whether to use SignalR websocket,server send events, long pooling mechanisms or request pooling
+		/// </summary>
+		public bool UseSignalR { get; set; } = false;
+
+		/// <summary>
+		/// SignalR hub name
+		/// </summary>
+		public static string SignalRHubPath { get; set; } = "/DevReloadSignalR";
 	}
 
 	/// <summary>
@@ -88,7 +98,6 @@ namespace Abiosoft.DotNet.DevReload
 			{
 				throw new ArgumentNullException(nameof(options));
 			}
-
 
 			return app.UseMiddleware<DevReloadMiddleware>(Options.Create(options));
 		}

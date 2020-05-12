@@ -1,5 +1,6 @@
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Http;
+using Microsoft.AspNetCore.SignalR;
 using Microsoft.Extensions.Options;
 using System;
 using System.IO;
@@ -19,12 +20,18 @@ namespace Abiosoft.DotNet.DevReload
 		private readonly RequestDelegate _next;
 		private readonly FileSystemWatcher _watcher;
 		private readonly DevReloadOptions _options;
+		private IHubContext<DevReloadHub, IDevReloadClient> _hubContext;
+
+		internal static string GetLastChangeDateTimeAsString => DateTime.Now.ToString("R");//RFC1123Pattern
+		internal const string REQUEST_HEADER_NAME = "date";
 
 		/// <summary>
 		/// DevReload middleware default DI constructor.
 		/// </summary>
 		public DevReloadMiddleware(RequestDelegate next, IOptions<DevReloadOptions> options,
-			IHostingEnvironment env, IApplicationLifetime applicationLifetime)
+			IHostingEnvironment env, IApplicationLifetime applicationLifetime,
+			IOptions<HubOptions> signalRHubOptions,
+			IHubContext<DevReloadHub, IDevReloadClient> hubContext)
 		{
 			if (options == null)
 			{
@@ -39,7 +46,8 @@ namespace Abiosoft.DotNet.DevReload
 				throw new SecurityException("WARNING: Non develop environment with DevReload active!");
 			}
 
-			_time = DateTime.Now.ToString();
+			_hubContext = hubContext;
+			_time = GetLastChangeDateTimeAsString;
 			_watcher = new FileSystemWatcher();
 			_next = next;
 			_options = options.Value;
@@ -57,7 +65,7 @@ namespace Abiosoft.DotNet.DevReload
 
 			applicationLifetime.ApplicationStopped.Register(OnShutDown, false);
 
-			Js.GenerateScript(_options);
+			Js.GenerateScript(_options, signalRHubOptions);
 
 			Task.Run((Action)Watch);
 		}
@@ -74,29 +82,30 @@ namespace Abiosoft.DotNet.DevReload
 		/// <summary>
 		/// Execution of middleware through pipeline
 		/// </summary>
-		/// <param name="c">context</param>
+		/// <param name="context">context</param>
 		/// <returns></returns>
-		public Task Invoke(HttpContext c)
+		public Task Invoke(HttpContext context)
 		{
-			if (c.Request.Path.StartsWithSegments(DevReloadOptions.DevReloadPath))
+			if (context.Request.Path.StartsWithSegments(DevReloadOptions.DevReloadPath))
 			{
-				if (c.Request.Headers.ContainsKey("ping"))
+				if (context.Request.Headers.ContainsKey("ping"))
 				{
-					if (HttpMethods.IsHead(c.Request.Method))
+					if (HttpMethods.IsHead(context.Request.Method))
 					{
-						c.Request.Method = HttpMethods.Get;
-						c.Response.Headers.Add("pong", _time);
-						c.Response.Body = Stream.Null;
+						context.Request.Method = HttpMethods.Get;
+						//changing default date header: https://developer.mozilla.org/pl/docs/Web/HTTP/Headers/Data
+						context.Response.Headers[REQUEST_HEADER_NAME] = _time;
+						context.Response.Body = Stream.Null;
 						return Task.CompletedTask;
 					}
 					else
-						return c.Response.WriteAsync(_time);
+						return context.Response.WriteAsync(_time, context.RequestAborted);
 				}
 
-				c.Response.ContentType = "application/javascript";
-				return c.Response.WriteAsync(Js.Script);
+				context.Response.ContentType = "application/javascript";
+				return context.Response.WriteAsync(Js.Script, context.RequestAborted);
 			}
-			return _next(c);
+			return _next(context);
 		}
 
 		private void Watch()
@@ -131,16 +140,19 @@ namespace Abiosoft.DotNet.DevReload
 			{
 				if (_options.StaticFileExtensions.Contains(fileInfo.Extension))
 				{
-					_time = DateTime.Now.ToString();
+					_time = GetLastChangeDateTimeAsString;
+					if (_options.UseSignalR && _hubContext != null)
+						_hubContext.Clients.All.DatePong(_time);
 				}
 			}
 			else
 			{
-				_time = DateTime.Now.ToString();
+				_time = GetLastChangeDateTimeAsString;
+				if (_options.UseSignalR && _hubContext != null)
+					_hubContext.Clients.All.DatePong(_time);
 			}
 			// Specify what is done when a file is changed, created, or deleted.
 			Console.WriteLine($"File: {e.FullPath} {e.ChangeType}");
 		}
-
 	}
 }
