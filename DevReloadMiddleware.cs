@@ -16,14 +16,14 @@ namespace Abiosoft.DotNet.DevReload
 	public class DevReloadMiddleware
 	{
 		private string _time;
-
 		private readonly RequestDelegate _next;
 		private readonly FileSystemWatcher _watcher;
 		private readonly DevReloadOptions _options;
 		private IHubContext<DevReloadHub, IDevReloadClient> _hubContext;
 
-		internal static string GetLastChangeDateTimeAsString => DateTime.Now.ToString("R");//RFC1123Pattern
 		internal const string REQUEST_HEADER_NAME = "date";
+
+		internal static string GetLastChangeDateTimeAsString => DateTime.Now.ToString("R");//RFC1123Pattern
 
 		/// <summary>
 		/// DevReload middleware default DI constructor.
@@ -141,14 +141,14 @@ namespace Abiosoft.DotNet.DevReload
 				if (_options.StaticFileExtensions.Contains(fileInfo.Extension))
 				{
 					_time = GetLastChangeDateTimeAsString;
-					if (_options.UseSignalR && _hubContext != null)
+					if (DevReloadOptions.UseSignalR && _hubContext != null)
 						_hubContext.Clients.All.DatePong(_time);
 				}
 			}
 			else
 			{
 				_time = GetLastChangeDateTimeAsString;
-				if (_options.UseSignalR && _hubContext != null)
+				if (DevReloadOptions.UseSignalR && _hubContext != null)
 					_hubContext.Clients.All.DatePong(_time);
 			}
 			// Specify what is done when a file is changed, created, or deleted.

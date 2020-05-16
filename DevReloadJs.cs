@@ -10,7 +10,7 @@ namespace Abiosoft.DotNet.DevReload
 
 		public static void GenerateScript(DevReloadOptions options, IOptions<HubOptions> signalRHubOptions)
 		{
-			if (options.UseSignalR == false || signalRHubOptions == null)
+			if (DevReloadOptions.UseSignalR == false || signalRHubOptions == null)
 			{
 				Script = @"'use strict';
 
@@ -22,8 +22,8 @@ namespace Abiosoft.DotNet.DevReload
 		document.body.insertAdjacentHTML('beforeend', content);
 	});
 
-	let time = '', intervalId = undefined, isRefreshing = false,
-		failMaxCounter = (" + options.MaxConnectionFailedCount + @" <= 0 ? undefined : " + options.MaxConnectionFailedCount + @");
+	let time = '', intervalId = undefined, isRefreshing = false, failMaxCounter = " +
+		(options.MaxConnectionFailedCount <= 0 ? "undefined" : options.MaxConnectionFailedCount.ToString()) + @";
 
 	function check() {
 		var xhr = new XMLHttpRequest();
@@ -47,7 +47,7 @@ namespace Abiosoft.DotNet.DevReload
 					location.reload();
 				}
 				else
-					failMaxCounter = (" + options.MaxConnectionFailedCount + @" <= 0 ? undefined : " + options.MaxConnectionFailedCount + @");
+					failMaxCounter = " + options.MaxConnectionFailedCount + @" <= 0 ? undefined : " + options.MaxConnectionFailedCount + @";
 			}
 			else if(failMaxCounter !== undefined && --failMaxCounter <= 0) {
 				clearInterval(intervalId);
@@ -65,8 +65,8 @@ namespace Abiosoft.DotNet.DevReload
 				Script = @"'use strict';
 
 (function() {
-	let time = '', connection = null,
-		failMaxCounter = (" + options.MaxConnectionFailedCount + @" <= 0 ? undefined : " + options.MaxConnectionFailedCount + @");
+	let time = '', connection = null, failMaxCounter = " +
+		(options.MaxConnectionFailedCount <= 0 ? "undefined" : options.MaxConnectionFailedCount.ToString()) + @";
 
 	window.addEventListener('load', function() {
 		const content = '" + options.PopoutHtmlTemplate.Replace("'", "\"").Replace(Environment.NewLine, $" \\{Environment.NewLine}") + @"';
@@ -92,7 +92,7 @@ namespace Abiosoft.DotNet.DevReload
 			location.reload();
 		}
 		else
-			failMaxCounter = (" + options.MaxConnectionFailedCount + @" <= 0 ? undefined : " + options.MaxConnectionFailedCount + @");
+			failMaxCounter = " + (options.MaxConnectionFailedCount <= 0 ? "undefined" : options.MaxConnectionFailedCount.ToString()) + @";
 	}
 
 	function setupSignalR() {
@@ -106,14 +106,12 @@ namespace Abiosoft.DotNet.DevReload
 		function startSignalR() {
 			connection.start().then(function() {
 				console.log('DevReload SignalR connected');
-				connection.invoke('" + nameof(IDevReloadServer.DatePing) + @"', time).then(function (body) {
-					pongProcessing(body);
-				});
+				connection.invoke('" + nameof(IDevReloadServer.DatePing) + @"', time).then(pongProcessing);
 			}).catch(function(err) {
 				console.error('DevReload SignalR error: ' + err);
 				if(failMaxCounter !== undefined && --failMaxCounter <= 0) {
 				} else
-					setTimeout(function() { startSignalR(); }, " + options.CheckIntervalDelay + @");
+					setTimeout(startSignalR, " + options.CheckIntervalDelay + @");
 			});
 		};
 
@@ -123,7 +121,7 @@ namespace Abiosoft.DotNet.DevReload
 
 				if(failMaxCounter !== undefined && --failMaxCounter <= 0) {
 				} else
-					setTimeout(function() { startSignalR(); }, " + options.CheckIntervalDelay + @");
+					setTimeout(startSignalR, " + options.CheckIntervalDelay + @");
 			}
 		});
 

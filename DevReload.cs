@@ -60,7 +60,12 @@ namespace Abiosoft.DotNet.DevReload
 		/// <summary>
 		/// Whether to use SignalR websocket,server send events, long pooling mechanisms or request pooling
 		/// </summary>
-		public bool UseSignalR { get; set; } = false;
+		public static bool UseSignalR { get; set; } = false;
+
+		/// <summary>
+		/// SignalR javascript library path
+		/// </summary>
+		public static string SignalRClientSide { get; set; } = "~/lib/signalr/dist/browser/signalr.js";
 
 		/// <summary>
 		/// SignalR hub name
@@ -97,6 +102,10 @@ namespace Abiosoft.DotNet.DevReload
 			if (options == null)
 			{
 				throw new ArgumentNullException(nameof(options));
+			}
+			if(DevReloadOptions.UseSignalR && string.IsNullOrEmpty(DevReloadOptions.SignalRClientSide))
+			{
+				throw new ArgumentException("Parameter not set when using SignalR", nameof(DevReloadOptions.SignalRClientSide));
 			}
 
 			return app.UseMiddleware<DevReloadMiddleware>(Options.Create(options));
