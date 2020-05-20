@@ -1,5 +1,7 @@
+using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.Html;
 using Microsoft.AspNetCore.Razor.TagHelpers;
+using System.Security;
 
 namespace Abiosoft.DotNet.DevReload
 {
@@ -11,6 +13,16 @@ namespace Abiosoft.DotNet.DevReload
 	public class DevReloadTagHelper : TagHelper
 	{
 		/// <summary>
+		/// Environment we are runnig at
+		/// </summary>
+		/// <param name="env"></param>
+		public DevReloadTagHelper(IHostingEnvironment env)
+		{
+			if (!env.IsDevelopment())
+				throw new SecurityException("WARNING: Non develop environment with DevReload active!");
+		}
+
+		/// <summary>
 		/// Processing tag helper
 		/// </summary>
 		/// <param name="context"></param>
@@ -20,13 +32,11 @@ namespace Abiosoft.DotNet.DevReload
 			if (DevReloadOptions.UseSignalR)
 			{
 				//Adds <script async src='~/lib/signalr/dist/browser/signalr.js'></script> before
-				output.PreElement.AppendHtmlLine($"<script async src='{DevReloadOptions.SignalRClientSide}'></script>");
+				output.PreElement.AppendHtmlLine(DevReloadOptions.SignalRClientSide);
 			}
 
 			output.TagName = "script";    // Replaces <devreload> with <script async src="...."> tag
-
 			output.Attributes.Add(new TagHelperAttribute("async", null, HtmlAttributeValueStyle.Minimized));
-
 			output.Attributes.Add("src", DevReloadOptions.DevReloadPath);
 		}
 	}

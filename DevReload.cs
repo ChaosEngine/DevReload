@@ -65,7 +65,7 @@ namespace Abiosoft.DotNet.DevReload
 		/// <summary>
 		/// SignalR javascript library path
 		/// </summary>
-		public static string SignalRClientSide { get; set; } = "~/lib/signalr/dist/browser/signalr.js";
+		public static string SignalRClientSide { get; set; } = "<script src='/lib/signalr/dist/browser/signalr.min.js'></script>";
 
 		/// <summary>
 		/// SignalR hub name
