@@ -6,6 +6,7 @@ using System;
 using System.IO;
 using System.Linq;
 using System.Security;
+using System.Threading;
 using System.Threading.Tasks;
 
 namespace Abiosoft.DotNet.DevReload
@@ -15,7 +16,9 @@ namespace Abiosoft.DotNet.DevReload
 	/// </summary>
 	public class DevReloadMiddleware
 	{
-		private string _time;
+		private static string _time;
+		private static ReaderWriterLockSlim _lock;
+
 		private readonly RequestDelegate _next;
 		private readonly FileSystemWatcher _watcher;
 		private readonly DevReloadOptions _options;
@@ -46,8 +49,10 @@ namespace Abiosoft.DotNet.DevReload
 				throw new SecurityException("WARNING: Non develop environment with DevReload active!");
 			}
 
+			_lock = new ReaderWriterLockSlim();
+			SaveAndProcessNewTime();
+
 			_hubContext = hubContext;
-			_time = GetLastChangeDateTimeAsString;
 			_watcher = new FileSystemWatcher();
 			_next = next;
 			_options = options.Value;
@@ -77,6 +82,8 @@ namespace Abiosoft.DotNet.DevReload
 				_watcher.EnableRaisingEvents = false;
 				_watcher.Dispose();
 			}
+			if (_lock != null)
+				_lock.Dispose();
 		}
 
 		/// <summary>
@@ -94,12 +101,32 @@ namespace Abiosoft.DotNet.DevReload
 					{
 						context.Request.Method = HttpMethods.Get;
 						//changing default date header: https://developer.mozilla.org/pl/docs/Web/HTTP/Headers/Data
-						context.Response.Headers[REQUEST_HEADER_NAME] = _time;
+
+						_lock.EnterReadLock();
+						try
+						{
+							context.Response.Headers[REQUEST_HEADER_NAME] = _time;
+						}
+						finally
+						{
+							_lock.ExitReadLock();
+						}
+
 						context.Response.Body = Stream.Null;
 						return Task.CompletedTask;
 					}
 					else
-						return context.Response.WriteAsync(_time, context.RequestAborted);
+					{
+						_lock.EnterReadLock();
+						try
+						{
+							return context.Response.WriteAsync(_time, context.RequestAborted);
+						}
+						finally
+						{
+							_lock.ExitReadLock();
+						}
+					}
 				}
 
 				context.Response.ContentType = "application/javascript";
@@ -124,9 +151,27 @@ namespace Abiosoft.DotNet.DevReload
 			_watcher.EnableRaisingEvents = true;
 		}
 
+		private void SaveAndProcessNewTime()
+		{
+			_lock.EnterWriteLock();
+			try
+			{
+				_time = GetLastChangeDateTimeAsString;
+				if (DevReloadOptions.UseSignalR && _hubContext != null)
+					_hubContext.Clients.All.DatePong(_time);
+			}
+			finally
+			{
+				_lock.ExitWriteLock();
+			}
+		}
+
 		// Define the event handlers.
 		private void OnChanged(object source, FileSystemEventArgs e)
 		{
+			if (_lock.IsWriteLockHeld)
+				return;//no need to process this event since some other event already started reloading
+
 			// return if it's an ignored directory
 			var sep = Path.DirectorySeparatorChar;
 			string full_path = e.FullPath.Replace('\\', sep).Replace('/', sep);
@@ -140,16 +185,12 @@ namespace Abiosoft.DotNet.DevReload
 			{
 				if (_options.StaticFileExtensions.Contains(fileInfo.Extension))
 				{
-					_time = GetLastChangeDateTimeAsString;
-					if (DevReloadOptions.UseSignalR && _hubContext != null)
-						_hubContext.Clients.All.DatePong(_time);
+					SaveAndProcessNewTime();
 				}
 			}
 			else
 			{
-				_time = GetLastChangeDateTimeAsString;
-				if (DevReloadOptions.UseSignalR && _hubContext != null)
-					_hubContext.Clients.All.DatePong(_time);
+				SaveAndProcessNewTime();
 			}
 			// Specify what is done when a file is changed, created, or deleted.
 			Console.WriteLine($"File: {e.FullPath} {e.ChangeType}");
